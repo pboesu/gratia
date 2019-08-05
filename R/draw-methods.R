@@ -99,6 +99,10 @@
     ## add labelling to plot
     plt <- plt + labs(x = xlab, y = ylab, title = title, subtitle = subtitle,
                       caption = caption)
+    
+    if (isTRUE(list(...)$rug)) {
+      plt <- plt + geom_rug(sides = "b", position = 'identity')
+    }
 
     plt
 }
