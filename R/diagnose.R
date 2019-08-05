@@ -43,7 +43,7 @@
 ##' @export
 ##'
 ##' @examples
-##' library("mgcv")
+##' suppressPackageStartupMessages(library("mgcv"))
 ##' ## simulate binomial data...
 ##' set.seed(0)
 ##' n.samp <- 200
@@ -57,6 +57,10 @@
 ##'
 ##' ## Q-Q plot; default using direct randomization of uniform quantiles
 ##' qq_plot(m)
+##'
+##' ## Alternatively use simulate new data from the model, which
+##' ## allows construction of reference intervals for the Q-Q plot
+##' qq_plot(m, method = "simulate")
 ##'
 ##' ## ... or use the usual normality assumption
 ##' qq_plot(m, method = "normal")

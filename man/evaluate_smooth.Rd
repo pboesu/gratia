@@ -11,7 +11,7 @@
 evaluate_smooth(object, ...)
 
 \method{evaluate_smooth}{gam}(object, smooth, n = 100, newdata = NULL,
-  unconditional = FALSE, inc_mean = FALSE, dist = 0.1, ...)
+  unconditional = FALSE, overall_uncertainty = TRUE, dist = 0.1, ...)
 
 \method{evaluate_smooth}{gamm}(object, ...)
 
@@ -37,9 +37,9 @@ smooth.}
 uncertainty due to smoothness selection? If \code{TRUE}, the corrected Bayesian
 covariance matrix will be used.}
 
-\item{inc_mean}{logical; should the uncertainty in the model constant term be
-included in the standard error of the evaluate values of the smooth?
-Currently not implemented.}
+\item{overall_uncertainty}{logical; should the uncertainty in the model
+constant term be included in the standard error of the evaluate values of
+the smooth?}
 
 \item{dist}{numeric; if greater than 0, this is used to determine when
 a location is too far from data to be plotted when plotting 2-D smooths.
@@ -60,17 +60,21 @@ covariate associated with the smooth. Alternatively, a set of points at
 which the smooth should be evaluated can be supplied.
 }
 \examples{
-library("mgcv")
+suppressPackageStartupMessages(library("mgcv"))
+\dontshow{
 set.seed(2)
+op <- options(cli.unicode = FALSE, digits = 6)
+}
 dat <- gamSim(1, n = 400, dist = "normal", scale = 2)
 m1 <- gam(y ~ s(x0) + s(x1) + s(x2) + s(x3), data = dat, method = "REML")
 
-head(evaluate_smooth(m1, "s(x1)"))
+evaluate_smooth(m1, "s(x1)")
 
 ## 2d example
 set.seed(2)
-dat <- gamSim(2, n = 4000, dist = "normal", scale = 1)
+dat <- gamSim(2, n = 1000, dist = "normal", scale = 1)
 m2 <- gam(y ~ s(x, z, k = 30), data = dat$data, method = "REML")
 
-head(evaluate_smooth(m2, "s(x,z)", n = 100))
+evaluate_smooth(m2, "s(x,z)", n = 100)
+\dontshow{options(op)}
 }

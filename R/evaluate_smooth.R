@@ -13,9 +13,9 @@
 ##' @param unconditional logical; should confidence intervals include the
 ##'   uncertainty due to smoothness selection? If `TRUE`, the corrected Bayesian
 ##'   covariance matrix will be used.
-##' @param inc_mean logical; should the uncertainty in the model constant term be
-##'  included in the standard error of the evaluate values of the smooth?
-##'  Currently not implemented.
+##' @param overall_uncertainty logical; should the uncertainty in the model
+##'  constant term be included in the standard error of the evaluate values of
+##'  the smooth?
 ##' @param dist numeric; if greater than 0, this is used to determine when
 ##'   a location is too far from data to be plotted when plotting 2-D smooths.
 ##'   The data are scaled into the unit square before deciding what to exclude,
@@ -33,19 +33,23 @@
 ##' @export
 ##'
 ##' @examples
-##' library("mgcv")
+##' suppressPackageStartupMessages(library("mgcv"))
+##' \dontshow{
 ##' set.seed(2)
+##' op <- options(cli.unicode = FALSE, digits = 6)
+##' }
 ##' dat <- gamSim(1, n = 400, dist = "normal", scale = 2)
 ##' m1 <- gam(y ~ s(x0) + s(x1) + s(x2) + s(x3), data = dat, method = "REML")
 ##'
-##' head(evaluate_smooth(m1, "s(x1)"))
+##' evaluate_smooth(m1, "s(x1)")
 ##'
 ##' ## 2d example
 ##' set.seed(2)
-##' dat <- gamSim(2, n = 4000, dist = "normal", scale = 1)
+##' dat <- gamSim(2, n = 1000, dist = "normal", scale = 1)
 ##' m2 <- gam(y ~ s(x, z, k = 30), data = dat$data, method = "REML")
 ##'
-##' head(evaluate_smooth(m2, "s(x,z)", n = 100))
+##' evaluate_smooth(m2, "s(x,z)", n = 100)
+##' \dontshow{options(op)}
 `evaluate_smooth` <- function(object, ...) {
     UseMethod("evaluate_smooth")
 }
@@ -53,7 +57,8 @@
 ##' @export
 ##' @rdname evaluate_smooth
 `evaluate_smooth.gam` <- function(object, smooth, n = 100, newdata = NULL,
-                                  unconditional = FALSE, inc_mean = FALSE,
+                                  unconditional = FALSE,
+                                  overall_uncertainty = TRUE,
                                   dist = 0.1, ...) {
     ## to keep this simple, only evaluate a single smooth at a time
     if (length(smooth) > 1L) {
@@ -61,6 +66,9 @@
         smooth <- smooth[1L]
     }
     smooth_ids <- which_smooth(object, smooth) # which smooths match 'smooth'
+    if (identical(length(smooth_ids), 0L)) {
+        stop("Requested smooth '", smooth, "' not found", call. = FALSE)
+    }
     smooth_labels <- select_smooth(object, smooth)
 
     ## Need to handle by smooths here
@@ -79,11 +87,13 @@
                                         unconditional = unconditional)
     } else if (smooth_dim(SMOOTHS[[1]]) == 1L) { # if 2d smooth, call separate fun
         evaluated <- evaluate_1d_smooth(SMOOTHS, n = n, model = object,
-                                        newdata = newdata, inc_mean = inc_mean,
+                                        newdata = newdata,
+                                        overall_uncertainty = overall_uncertainty,
                                         unconditional = unconditional)
     } else if (smooth_dim(SMOOTHS[[1]]) == 2L) {
         evaluated <- evaluate_2d_smooth(SMOOTHS, n = n, model = object,
-                                        newdata = newdata, inc_mean = inc_mean,
+                                        newdata = newdata,
+                                        overall_uncertainty = overall_uncertainty,
                                         unconditional = unconditional,
                                         dist = dist)
     } else {
@@ -103,17 +113,18 @@
 ##' @importFrom tibble add_column
 `evaluate_re_smooth` <- function(object, model = NULL, newdata = NULL,
                                  unconditional = FALSE) {
-    ## If more than one smooth, these should be by variables smooths
-    ## of a global plus by variable smooth
+    ## is this a by smooth
     is.by <- vapply(object, FUN = is_by_smooth, FUN.VALUE = logical(1L))
-    if (length(object) > 1L) {
-        if (!all(is.by)) {
-            vars <- vapply(object, smooth_variable, character(1L))
-            if (length(unique(vars)) > 1L) {
-                stop(by_smooth_failure(object))
-            }
-        }
-    }
+    ## 're' smooths can have multiple terms, by the time we're here the
+    ## fun should just work and we don't need this check
+    ## if (length(object) > 1L) {
+    ##     if (!all(is.by)) {
+    ##         vars <- vapply(object, smooth_variable, character(1L))
+    ##         if (length(unique(vars)) > 1L) {
+    ##             stop(by_smooth_failure(object))
+    ##         }
+    ##     }
+    ## }
 
     ## get by variable info
     by_var <- unique(vapply(object, FUN = by_variable, FUN.VALUE = character(1)))
@@ -123,13 +134,16 @@
     }
 
     ## get variable for this smooth
-    smooth_var    <- unique(vapply(object, FUN = smooth_variable, FUN.VALUE = character(1)))
+    smooth_var    <- unique(unlist(lapply(object, FUN = smooth_variable)))
     smooth_labels <- vapply(object, FUN = smooth_label, FUN.VALUE = character(1))
-    levs <- levels(model[["model"]][[smooth_var]])
-    labels <- paste0(smooth_var, levs)
+    ## need `drop = FALSE` (the default) here because by default mgcv doesn't
+    ## drop the unused levels; hence we get a coef for all combinations of
+    ## vars in the ranef smooth
+    levs <- levels(interaction(model[["model"]][smooth_var], drop = FALSE))
 
     ## if we have a by variable
-    is.factor.by <- vapply(object, FUN = is_factor_by_smooth, FUN.VALUE = logical(1L))
+    is.factor.by <- vapply(object, FUN = is_factor_by_smooth,
+                           FUN.VALUE = logical(1L))
 
     evaluated <- vector("list", length(object))
     for (i in seq_along(evaluated)) {
@@ -156,7 +170,7 @@
         evaluated <- add_missing_by_info_to_smooth(evaluated)
     }
 
-    names(evaluated)[3] <- smooth_var
+    names(evaluated)[3] <- paste(smooth_var, collapse = ", ")
     class(evaluated) <- c("evaluated_re_smooth", "evaluated_smooth", class(evaluated))
 
     evaluated
@@ -165,7 +179,8 @@
 ##' @importFrom tibble add_column
 ##' @importFrom dplyr bind_rows
 `evaluate_1d_smooth` <- function(object, n = NULL, model = NULL, newdata = NULL,
-                                 unconditional = FALSE, inc_mean = FALSE) {
+                                 unconditional = FALSE,
+                                 overall_uncertainty = TRUE) {
     ## If more than one smooth, these should be by variables smooths
     ## of a global plus by variable smooth
     is.by <- vapply(object, FUN = is_by_smooth, FUN.VALUE = logical(1L))
@@ -182,7 +197,8 @@
     by_var <- unique(vapply(object, FUN = by_variable, FUN.VALUE = character(1)))
 
     ## get variable for this smooth
-    smooth_var <- unique(vapply(object, FUN = smooth_variable, FUN.VALUE = character(1)))
+    smooth_var <- unique(vapply(object, FUN = smooth_variable,
+                                FUN.VALUE = character(1)))
 
     newx <- if (is.null(newdata)) {
                 setNames(datagen(object[[1]], n = n,
@@ -249,7 +265,8 @@
         evaluated[[i]] <- spline_values(object[[i]],
                                         newdata = newx[ind, , drop = FALSE],
                                         unconditional = unconditional,
-                                        model = model, inc_mean = inc_mean,
+                                        model = model,
+                                        overall_uncertainty = overall_uncertainty,
                                         term = smooth_var)
     }
 
@@ -273,7 +290,8 @@
 ##' @importFrom tibble add_column
 ##' @importFrom mgcv exclude.too.far
 `evaluate_2d_smooth` <- function(object, n = NULL, model = NULL, newdata = NULL,
-                                 unconditional = FALSE, inc_mean = FALSE, dist = 0.1) {
+                                 unconditional = FALSE,
+                                 overall_uncertainty = TRUE, dist = 0.1) {
     ## If more than one smooth, these should be by variables smooths
     ## of a global plus by variable smooth
     is.by <- vapply(object, FUN = is_by_smooth, FUN.VALUE = logical(1L))
@@ -357,7 +375,8 @@
         evaluated[[i]] <- spline_values(object[[i]],
                                         newdata = newx[ind, , drop = FALSE],
                                         unconditional = unconditional,
-                                        model = model, inc_mean = inc_mean,
+                                        model = model,
+                                        overall_uncertainty = overall_uncertainty,
                                         term = smooth_var)
     }
 
@@ -393,7 +412,8 @@
 
 ##' @importFrom tibble add_column
 `evaluate_fs_smooth` <- function(object, n = NULL, model = NULL, newdata = NULL,
-                                 unconditional = FALSE, inc_mean = FALSE) {
+                                 unconditional = FALSE,
+                                 overall_uncertainty = TRUE) {
     ## If more than one smooth, these should be by variables smooths
     ## of a global plus by variable smooth
     is.by <- vapply(object, FUN = is_by_smooth, FUN.VALUE = logical(1L))
@@ -481,7 +501,8 @@
         evaluated[[i]] <- spline_values(object[[i]],
                                         newdata = newx[ind, , drop = FALSE],
                                         unconditional = unconditional,
-                                        model = model, inc_mean = inc_mean,
+                                        model = model,
+                                        overall_uncertainty = overall_uncertainty,
                                         term = smooth_var)
     }
 
@@ -564,7 +585,7 @@
 ## loop over smooths and predict
 ##' @importFrom tibble data_frame
 `spline_values` <- function(smooth, newdata, model, unconditional,
-                            inc_mean = FALSE, term) {
+                            overall_uncertainty = TRUE, term) {
     X <- PredictMat(smooth, newdata)   # prediction matrix
     start <- smooth[["first.para"]]
     end <- smooth[["last.para"]]
@@ -582,7 +603,7 @@
     nc <- ncol(V)
     meanL1 <- smooth[["meanL1"]]
 
-    if (isTRUE(inc_mean) && attr(smooth, "nCons") > 0L) {
+    if (isTRUE(overall_uncertainty) && attr(smooth, "nCons") > 0L) {
         if (lcms < nc) {
             column_means <- c(column_means, rep(0, nc - lcms))
         }

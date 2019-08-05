@@ -1,10 +1,13 @@
 # gratia
 
-The *gratia* package for R provides ggplot-based graphics and useful functions for GAMs fitted using the mgcv package.
+[![Build Status](https://travis-ci.org/gavinsimpson/gratia.svg?branch=master)](https://travis-ci.org/gavinsimpson/gratia)
+[![Build status](https://ci.appveyor.com/api/projects/status/w7pj8773t5b8fxkb/branch/master?svg=true)](https://ci.appveyor.com/project/gavinsimpson/gratia/branch/master)
+[![codecov.io](https://codecov.io/gh/gavinsimpson/gratia/branch/master/graph/badge.svg)](https://codecov.io/gh/gavinsimpson/gratia)
+[![CRAN\_Status\_Badge](http://www.r-pkg.org/badges/version/gratia)](https://cran.r-project.org/package=gratia)
 
-## Build status
+## Overview
 
-[![Build Status](https://travis-ci.org/gavinsimpson/gratia.svg?branch=master)](https://travis-ci.org/gavinsimpson/gratia) [![Build status](https://ci.appveyor.com/api/projects/status/w7pj8773t5b8fxkb/branch/master?svg=true)](https://ci.appveyor.com/project/gavinsimpson/gratia/branch/master) [![codecov](https://codecov.io/gh/gavinsimpson/gratia/branch/master/graph/badge.svg)](https://codecov.io/gh/gavinsimpson/gratia)
+Graceful 'ggplot'-based graphics and utility functions for working with generalized additive models (GAMs) fitted using the 'mgcv' package. Provides a reimplementation of the `plot()` method for GAMs that 'mgcv' provides, as well as 'tidyverse' compatible representations of estimated smooths.
 
 ## Features
 
@@ -12,11 +15,17 @@ The main features of *gratia* are currently
 
 * A *ggplot2*-based replacement for `mgcv:::plot.gam()`: `draw(gam_model)`.
 
-    Note specialist smoothers (`bs %in% c("sos","mrf","so")`) are not supported, but univariate, *factor* and *continuous* `by`-variable smooths, simple random effect smooths (`bs = 're'`), factor-smooth interaction smooths (`bs = "fs"`), and bivariate tensor product smooths are supported,
+    ![Estimated smooths from a GAM](man/figures/draw-gam-figure.png)
 
-* Estimatation of derivatives of fitted smoothers: `fderiv(gam_model)`,
+    Note specialist smoothers (`bs %in% c("sos","mrf","so")`) are not currently supported, but univariate, *factor* and *continuous* `by`-variable smooths, simple random effect smooths (`bs = 're'`), factor-smooth interaction smooths (`bs = "fs"`), and bivariate tensor product smooths are supported,
+
+* Estimatation of derivatives of fitted smoothers: `derivatives()` (older functionality in `fderiv(gam_model)`),
 
 * Estimation of point-wise across-the-function confidence intervals and simultaneous intervals for smooths: `confint(gam_model)`.
+
+* Model diagnostics via `appraise()`
+
+    ![Model diagnostics figure](man/figures/appraise-figure.png)
 
 ## Installing *gratia*
 
@@ -34,7 +43,7 @@ to install the package.
 
 ## Why *gratia*?
 
-In naming his [*greta*](https://github.com/greta-dev/greta) package, Nick Golding observed the recent phenomena of naming statistical modelling software, such as Stan or Edward, after individuals that played a prominent role in the development of the field. This lead Nick to name his Tensor Flow-based package *greta* after [*Grete Hermann*](https://greta-dev.github.io/greta/why_greta.html).
+In naming his [*greta*](https://github.com/greta-dev/greta) package, Nick Golding observed the recent phenomena of naming statistical modelling software, such as Stan or Edward, after individuals that played a prominent role in the development of the field. This lead Nick to name his Tensor Flow-based package *greta* after [*Grete Hermann*](https://greta-stats.org/articles/webpages/why_greta.html).
 
 In the same spirit, *gratia* is named in recognition of the contributions of [Grace Wahba](https://en.wikipedia.org/wiki/Grace_Wahba), who did pioneering work on the penalised spline models that are at the foundation of the way GAMs are estimated in *mgcv*. I wanted to name the package *grace*, to explicitly recognise Grace's contributions, but unfortunately there was already a package named *Grace* on CRAN. So I looked elsewhere for inspiration.
 

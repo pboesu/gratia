@@ -17,7 +17,7 @@ derivatives(object, ...)
   type = c("forward", "backward", "central"), n = 200, eps = 1e-07,
   interval = c("confidence", "simultaneous"), n_sim = 10000,
   level = 0.95, unconditional = FALSE, frequentist = FALSE,
-  offset = NULL, ...)
+  offset = NULL, ncores = 1, ...)
 }
 \arguments{
 \item{object}{an R object to compute derivatives for.}
@@ -57,22 +57,28 @@ covariance matrix?}
 \item{frequentist}{logical; use the frequentist covariance matrix?}
 
 \item{offset}{numeric; a value to use for any offset term}
+
+\item{ncores}{number of cores for generating random variables from a
+multivariate normal distribution. Passed to \code{\link[mvnfast:rmvn]{mvnfast::rmvn()}}.
+Parallelization will take place only if OpenMP is supported (but appears
+to work on Windows with current \code{R}).}
 }
 \description{
 Derivatives of estimated smooths via finite differences
 }
 \examples{
 
-library("mgcv")
-\dontshow{set.seed(42)}
+suppressPackageStartupMessages(library("mgcv"))
+\dontshow{
+set.seed(42)
+op <- options(cli.unicode = FALSE)
+}
 dat <- gamSim(1, n = 400, dist = "normal", scale = 2, verbose = FALSE)
 mod <- gam(y ~ s(x0) + s(x1) + s(x2) + s(x3), data = dat, method = "REML")
 
-## first derivative of all smooths
-derivatives(mod)
-
-## second derivative of smooth of x2 only using central finite difference
-derivatives(mod, "s(x2)", order = 2, type = "central")
+## first derivative of all smooths using central finite differenc
+derivatives(mod, type = "central")
+\dontshow{options(op)}
 }
 \author{
 Gavin L. Simpson

@@ -397,7 +397,7 @@
 ##' @export
 ##'
 ##' @examples
-##' library("mgcv")
+##' suppressPackageStartupMessages(library("mgcv"))
 ##' \dontshow{set.seed(2)}
 ##' df <- gamSim(1, n = 400, dist = "normal")
 ##' m <- gam(y ~ s(x0) + s(x1) + offset(x2), data = df, method = "REML")
@@ -448,7 +448,7 @@
 ##' @export
 ##'
 ##' @examples
-##' library("mgcv")
+##' suppressPackageStartupMessages(library("mgcv"))
 ##' df <- gamSim(1, n = 400, dist = "normal")
 ##' m <- gam(y ~ s(x0) + s(x1) + offset(x0), data = df, method = "REML")
 ##' nm <- names(model.frame(m))
@@ -536,10 +536,58 @@
         length.out = n)
 }
 
+##' @title Create a sequence of evenly-spaced values adjusted to accommodate a
+##'   small adjustment
+##'
+##' @description Creates a sequence of `n` evenly-spaced values over the range
+##'   `min(x)` -- `max(x)`, where the minimum and maximum are adjusted such that
+##'   they are always contained within the range of `x` when `x` may be shifted
+##'   forwards or backwards by an amount related to `eps`. This is particularly
+##'   useful in computing derivatives via finite differences where without this
+##'   adjustment we may be predicting for values outside the range of the data
+##'   and hence the conmstraints of the penalty.
+##'
+##' @param x numeric; vector over which evenly-spaced values are returned
+##' @param n numeric; the number of evenly-spaced values to return
+##' @param eps numeric; the finite difference
+##' @param order integer; the order of derivative. Either `1` or `2` for first or
+##'   second order derivatives
+##' @param type character; the type of finite difference used. One of
+##'   `"forward"`, `"backward"`, or `"central"`
+##'
+##' @return A numeric vector of length `n`.
+`seq_min_max_eps` <- function(x, n, order,
+                              type = c("forward", "backward", "central"), eps) {
+    minx <- min(x, na.rm = TRUE)
+    maxx <- max(x, na.rm = TRUE)
+    heps <- eps / 2
+    deps <- eps * 2
+    type <- match.arg(type)
+    if (isTRUE(all.equal(order, 1L))) {
+        minx <- switch(type,
+                       forward  = minx,
+                       backward = minx + eps,
+                       central  = minx + heps)
+        maxx <- switch(type,
+                       forward  = maxx - eps,
+                       backward = maxx,
+                       central  = maxx - heps)
+    } else {
+        minx <- switch(type,
+                       forward  = minx,
+                       backward = minx + deps,
+                       central  = minx + eps)
+        maxx <- switch(type,
+                       forward  = maxx - deps,
+                       backward = maxx,
+                       central  = maxx - eps)
+    }
+    seq(from = minx, to = maxx, length.out = n)
+}
+
 ##' Vectorized version of `data.class`
 ##'
-##' @param df a data frame or tibble.
-##'
+##' @param df a data frame or tibble.##'
 ##' @return A named character vector of data classes.
 ##'
 ##' @seealso The underlying functionality is provided by [data.class()].
@@ -618,4 +666,57 @@
              fam[["family"]], ">", call. = FALSE)
     }
     fam[["rd"]]
+}
+
+##' @title Select smooths based on user's choices
+##'
+##' @description Given a vector indexing the smooths of a GAM, returns a logical
+##'   vector selecting the requested smooths.
+##'
+##' @param smooths character; a vector of smooth labels.
+##' @param select numeric, logical, or character vector of selected smooths.
+##' @param partial_match logical; in the case of character `select`, should
+##'   `select` match partially against `smooths`? If `partial_match = TRUE`,
+##'   `select` must only be a single string, a character vector of length 1.
+##'
+##' @return A logical vector the same length as `length(smooths)` indicating
+##'   which smooths have been selected.
+##'
+##' @author Gavin L. Simpson
+`check_user_select_smooths` <- function(smooths, select = NULL, partial_match = FALSE) {
+    lenSmo <- length(smooths)
+    select <- if (!is.null(select)) {
+        lenSel <- length(select)
+        if (is.numeric(select)) {
+            if (lenSmo < lenSel) {
+                stop("Trying to select more smooths than are in the model.")
+            }
+            if (any(select > lenSmo)) {
+                stop("One or more indices in 'select' > than the number of smooths in the model.")
+            }
+            l <- rep(FALSE, lenSmo)
+            l[select] <- TRUE
+            l
+        } else if (is.character(select)) {
+            if (isTRUE(partial_match)) {
+                if (length(select) != 1L) {
+                    stop("When 'partial_match' is 'TRUE', 'select' must be a single string")
+                }
+                grepl(select, smooths, fixed = TRUE)
+            } else {
+                smooths %in% select
+            }
+        } else if (is.logical(select)) {
+            if (lenSmo != lenSel) {
+                stop("When 'select' is a logical vector, 'length(select)' must equal\nthe number of smooths in the model.")
+            }
+            select
+        } else {
+            stop("'select' is not numeric, character, or logical.")
+        }
+    } else {
+        rep(TRUE, lenSmo)
+    }
+
+    select
 }

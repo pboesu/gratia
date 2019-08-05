@@ -5,7 +5,8 @@
 \title{Point-wise and simultaneous confidence intervals for derivatives of smooths}
 \usage{
 \method{confint}{fderiv}(object, parm, level = 0.95,
-  type = c("confidence", "simultaneous"), nsim = 10000, ...)
+  type = c("confidence", "simultaneous"), nsim = 10000, ncores = 1L,
+  ...)
 }
 \arguments{
 \item{object}{an object of class \code{"fderiv"} containing the estimated
@@ -24,6 +25,11 @@ for point-wise intervals, or \code{"simultaneous"} for simultaneous intervals.}
 \item{nsim}{integer; the number of simulations used in computing the
 simultaneous intervals.}
 
+\item{ncores}{number of cores for generating random variables from a
+multivariate normal distribution. Passed to \code{\link[mvnfast:rmvn]{mvnfast::rmvn()}}.
+Parallelization will take place only if OpenMP is supported (but appears
+to work on Windows with current \code{R}).}
+
 \item{...}{additional arguments for methods}
 }
 \value{
@@ -40,8 +46,11 @@ Calculates point-wise confidence or simultaneous intervals for the first
 derivatives of smooth terms in a fitted GAM.
 }
 \examples{
-library("mgcv")
+suppressPackageStartupMessages(library("mgcv"))
+\dontshow{
 set.seed(2)
+op <- options(digits = 5)
+}
 dat <- gamSim(1, n = 400, dist = "normal", scale = 2)
 mod <- gam(y ~ s(x0) + s(x1) + s(x2) + s(x3), data = dat, method = "REML")
 
@@ -56,6 +65,7 @@ head(ci)
 set.seed(42)
 x1.sint <- confint(fd, parm = "x1", type = "simultaneous", nsim = 1000)
 head(x1.sint)
+\dontshow{options(op)}
 }
 \author{
 Gavin L. Simpson

@@ -26,6 +26,12 @@ test_that("evaluate_smooth throws a message with more than one term", {
                    "Supplied more than 1 'smooth'; using only the first")
 })
 
+test_that("evaluate_smooth throws error if smooth not found", {
+    expect_error(evaluate_smooth(m1, smooth = "s(z)"),
+                 "Requested smooth 's(z)' not found",
+                 fixed = TRUE)
+})
+
 test_that("evaluate_smooth works for a GAMM", {
     sm <- evaluate_smooth(m2, "s(x2)")
     expect_is(sm, "evaluated_1d_smooth")
@@ -49,10 +55,10 @@ test_that("evaluate_fs_smooth fails with multiple smooths that aren't by factor 
                  "Not all of these are 'by' variable smooths")
 })
 
-test_that("evaluate_re_smooth fails with multiple smooths that aren't by factor smooths", {
-    expect_error(gratia:::evaluate_re_smooth(m1[["smooth"]]),
-                 "Not all of these are 'by' variable smooths")
-})
+## test_that("evaluate_re_smooth fails with multiple smooths that aren't by factor smooths", {
+##     expect_error(gratia:::evaluate_re_smooth(m1[["smooth"]]),
+##                  "Not all of these are 'by' variable smooths")
+## })
 
 test_that("evaluate_smooth fails with a trivariate smooth", {
     m <- gam(y ~ s(x0, x1, x2), data = dat, method = "REML")
