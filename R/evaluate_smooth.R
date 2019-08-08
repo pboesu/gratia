@@ -543,7 +543,7 @@
                                            ...) {
     tt <- object$pterms       # get parametric terms
     tt <- delete.response(tt) # remove response so easier to work with
-    vars <- labels(tt)        # names of all parametric terms
+    vars <- unlist(lapply(tt, labels))        # names of all parametric terms
 
     if (length(term) > 1L) {
         term <- term[1L]
